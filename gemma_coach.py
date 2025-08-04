@@ -15,7 +15,7 @@ def get_empathy_feedback(text_to_analyze):
     """
     try:
         response = ollama.chat(
-            model='gemma:2b',
+            model='gemma3n:e2b',
             messages=[{'role': 'user', 'content': prompt}],
         )
         return response['message']['content']

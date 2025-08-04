@@ -48,7 +48,7 @@ For users who prefer the terminal, `main.py` provides a simple, command-line-bas
 
 ## Setup and Requirements
 
-1.  **Install Ollama**: Make sure you have [Ollama](https://ollama.com/) installed and have pulled the model used in the scripts (e.g., `gemma:2b`).
+1.  **Install Ollama**: Make sure you have [Ollama](https://ollama.com/) installed and have pulled the model used in the scripts (e.g., `gemma3n:e2b`).
 
 2.  **Start the Ollama Server**: Open a terminal and run the following command. Leave it running in the background.
     ```bash
@@ -61,11 +61,26 @@ For users who prefer the terminal, `main.py` provides a simple, command-line-bas
     ```
     *Note: `faster-whisper` may require you to install a compatible version of PyTorch (`torch`).*
 
+## Design Decisions & Challenges
+
+A core challenge during development was the reliability of direct audio processing within the Streamlit and Ollama ecosystem.
+
+-   **Initial Goal**: The ideal implementation was to have Gemma 3n analyze the audio stream directly, capturing nuances like tone and pacing, which it natively supports.
+-   **The Challenge**: We encountered difficulties getting the raw audio from the browser to be consistently processed by the local model via Ollama. This could be due to limitations in how Streamlit handles audio data, how Ollama ingests it, or other integration complexities.
+-   **The Workaround**: To ensure a robust and functional application for the hackathon, we implemented a reliable two-step process:
+    1.  **Transcribe**: Use the highly-effective `faster-whisper` library to convert spoken audio into text.
+    2.  **Analyze**: Send the clean text to Gemma for analysis.
+-   **The Core Trade-off**: This leads to a key strategic decision for future development:
+    -   **Option A (Text-Only)**: Perfect the current, reliable text-based analysis. It's fast, stable, and provides excellent feedback on the *content* of the user's message.
+    -   **Option B (Direct Audio)**: Investigate and solve the audio pipeline issues to unlock Gemma 3n's full multimodal potential, allowing for analysis of *how* things are said.
+
+This project uses the text-only approach for stability, but is designed to easily incorporate direct audio analysis once the ecosystem matures.
+
 ## Troubleshooting
 
 If you see errors like "llama runner process has terminated" or "Could not connect to Ollama," it usually means one of the following:
 
 1.  **Ollama is not running**: Ensure `ollama serve` is active in a separate terminal.
-2.  **Model not pulled**: Make sure you have the correct model installed (e.g., `ollama pull gemma:2b`). Check the model name inside the script you are running.
-3.  **System Resources**: Your computer may not have enough RAM to run the model. Try using a smaller model by changing the `model` parameter in the script's `ollama.chat` call.
-4.  **Corrupted Model**: Try removing and re-pulling the model: `ollama rm gemma:2b` then `ollama pull gemma:2b`.
+2.  **Model not pulled**: Make sure you have the correct model installed (e.g., `ollama pull gemma3n:e2b`). Check the model name inside the script you are running.
+3.  **System Resources**: Your computer may not have enough RAM to run the model. Try using a smaller model (e.g., `gemma:2b`) by changing the `model` parameter in the script's `ollama.chat` call.
+4.  **Corrupted Model**: Try removing and re-pulling the model: `ollama rm gemma3n:e2b` then `ollama pull gemma3n:e2b`.
