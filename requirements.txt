@@ -1,0 +1,7 @@
+streamlit
+ollama
+faster-whisper
+soundfile
+numpy
+sounddevice
+scipy
