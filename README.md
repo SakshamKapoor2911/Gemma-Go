@@ -1,21 +1,28 @@
-# Empathy Coach
+# The Offline Learning Coach
 
-This project is a privacy-first Empathy Coach that provides feedback on your speech using local AI models. It helps you practice conversations by analyzing your communication for clarity, sentiment, and empathy, running 100% on your own machine.
+This project is a privacy-first Learning Coach designed to help students in low-income or underdeveloped areas improve their writing and speaking skills. Once downloaded, it runs 100% offline, providing free access to AI-powered educational feedback without needing an internet connection.
 
-## Core Features
+## Core Mission & Features
 
--   **100% Local & Private**: Your voice data and conversations never leave your computer.
--   **Fast, Accurate Transcription**: Uses `faster-whisper` to transcribe your speech locally.
--   **Advanced Empathy Analysis**: Leverages a local Gemma model via Ollama to provide nuanced feedback.
--   **Multiple Interfaces**: Choose between an interactive Streamlit web app or a command-line interface.
+The goal is to increase accessibility to learning for students who lack regular access to teachers.
+
+-   **100% Local, Private, and Free**: After initial setup, the app runs entirely on the user's device. No internet required, no data shared.
+-   **Supportive Educational Feedback**: Uses a local Gemma model via Ollama to provide structured feedback on essays and speeches.
+-   **Multi-Language Support**: Gemma 3n supports over 140 languages, allowing students to get feedback in their native or learning language.
+-   **Speech & Text Input**: Users can either record their speech (which is transcribed locally) or type/paste their essays directly.
+-   **Cross-Platform Potential**: Can be packaged to run on low-cost computers or even mobile devices, making it highly accessible.
 
 ## Project Structure & How to Run
 
-This repository contains three different ways to run the Empathy Coach.
+This repository contains multiple ways to run the Learning Coach. **`local_app.py` is the main, recommended version for submission.**
+
+The other files (`app.py`, `main.py`) were developed for a different feature focused on analyzing audio characteristics like pitch, pauses, and confidence to help users improve their oratory skills. However, we encountered a technical challenge, as sending raw audio directly to Gemma 3n via Ollama is not yet supported.
+
+Our plan is to find a workaround for this limitation and integrate these advanced oratory-coaching features in a future release.
 
 ### 1. `local_app.py` (Recommended Web App)
 
-This is the main Streamlit application. It provides a user-friendly interface for either uploading an audio file or recording directly from your microphone.
+This is the main Streamlit application. It provides a user-friendly interface for submitting text or audio and selecting a language for feedback.
 
 **To run:**
 1.  Make sure Ollama is running in a separate terminal (`ollama serve`).
@@ -24,63 +31,62 @@ This is the main Streamlit application. It provides a user-friendly interface fo
     streamlit run local_app.py
     ```
 
-### 2. `app.py` (Alternative Web App)
+### 2. `app.py` & `main.py` (Alternative Interfaces)
 
-This is another version of the Streamlit application. It offers a slightly different UI, with a dedicated microphone input and a separate text area for manual entry.
-
-**To run:**
-1.  Make sure Ollama is running.
-2.  Run the Streamlit app:
-    ```bash
-    streamlit run app.py
-    ```
-
-### 3. `main.py` (Command-Line Version)
-
-For users who prefer the terminal, `main.py` provides a simple, command-line-based coaching session. It will record audio from your default microphone, transcribe it, and print the AI feedback directly to the console.
+These files provide alternative UIs. `app.py` is another Streamlit version, and `main.py` is a simple command-line tool.
 
 **To run:**
-1.  Make sure Ollama is running.
-2.  Run the Python script:
-    ```bash
-    python main.py
-    ```
+```bash
+# For the alternative web app
+streamlit run app.py
+
+# For the command-line version
+python main.py
+```
 
 ## Setup and Requirements
 
-1.  **Install Ollama**: Make sure you have [Ollama](https://ollama.com/) installed and have pulled the model used in the scripts (e.g., `gemma3n:e2b`).
+To ensure the project runs correctly, please follow these steps. It is recommended to use **Python 3.9 or newer**.
 
-2.  **Start the Ollama Server**: Open a terminal and run the following command. Leave it running in the background.
+1.  **Create a Virtual Environment**: It's best practice to create a dedicated environment for the project.
+    ```bash
+    # Create the environment
+    python -m venv venv
+
+    # Activate it (Windows)
+    .\\venv\\Scripts\\activate
+
+    # Activate it (macOS/Linux)
+    source venv/bin/activate
+    ```
+
+2.  **Install Ollama**: Make sure you have [Ollama](https://ollama.com/) installed and running on your system.
+
+3.  **Download the AI Model**: Pull the Gemma model required for the application. This only needs to be done once.
+    ```bash
+    ollama pull gemma3n:e4b
+    ```
+    *Note: The recommended `local_app.py` uses `gemma3n:e4b` for general learning feedback. The alternative interfaces use a different model for empathy-focused analysis.*
+
+4.  **Start the Ollama Server**: Open a separate terminal and run the following command. Leave this running in the background whenever you use the app.
     ```bash
     ollama serve
     ```
 
-3.  **Install Python Dependencies**: Install the required Python packages from the `requirements.txt` file.
+5.  **Install Python Dependencies**: Install the required Python packages using the `requirements.txt` file.
     ```bash
     pip install -r requirements.txt
     ```
-    *Note: `faster-whisper` may require you to install a compatible version of PyTorch (`torch`).*
+    *Note: `faster-whisper` requires PyTorch. If the installation fails, you may need to install `torch` and `torchaudio` separately by following the official instructions at [pytorch.org](https://pytorch.org/).*
 
-## Design Decisions & Challenges
+## Design Decisions & Future Work
 
-A core challenge during development was the reliability of direct audio processing within the Streamlit and Ollama ecosystem.
+A core challenge was processing audio reliably.
 
--   **Initial Goal**: The ideal implementation was to have Gemma 3n analyze the audio stream directly, capturing nuances like tone and pacing, which it natively supports.
--   **The Challenge**: We encountered difficulties getting the raw audio from the browser to be consistently processed by the local model via Ollama. This could be due to limitations in how Streamlit handles audio data, how Ollama ingests it, or other integration complexities.
--   **The Workaround**: To ensure a robust and functional application for the hackathon, we implemented a reliable two-step process:
-    1.  **Transcribe**: Use the highly-effective `faster-whisper` library to convert spoken audio into text.
-    2.  **Analyze**: Send the clean text to Gemma for analysis.
--   **The Core Trade-off**: This leads to a key strategic decision for future development:
-    -   **Option A (Text-Only)**: Perfect the current, reliable text-based analysis. It's fast, stable, and provides excellent feedback on the *content* of the user's message.
-    -   **Option B (Direct Audio)**: Investigate and solve the audio pipeline issues to unlock Gemma 3n's full multimodal potential, allowing for analysis of *how* things are said.
+-   **The Challenge**: While Gemma 3n can natively process audio, creating a stable pipeline to get raw audio from a web browser to the local model via Ollama is complex and not yet supported. This prevented us from implementing our desired oratory-coaching features (analyzing pitch, tone, etc.).
+-   **The Solution**: To ensure the app is robust and immediately useful, we adopted a two-step process for the main application:
+    1.  **Transcribe**: Use `faster-whisper` to reliably convert speech into text. This is excellent for analyzing the *content* of a speech.
+    2.  **Analyze**: Send the clean text to Gemma for educational analysis.
+-   **Future Work**: Our priority is to find a workaround for the direct audio pipeline. This would unlock feedback on pronunciation, tone, and pacing, which would be a powerful addition to the current features.
 
-This project uses the text-only approach for stability, but is designed to easily incorporate direct audio analysis once the ecosystem matures.
-
-## Troubleshooting
-
-If you see errors like "llama runner process has terminated" or "Could not connect to Ollama," it usually means one of the following:
-
-1.  **Ollama is not running**: Ensure `ollama serve` is active in a separate terminal.
-2.  **Model not pulled**: Make sure you have the correct model installed (e.g., `ollama pull gemma3n:e2b`). Check the model name inside the script you are running.
-3.  **System Resources**: Your computer may not have enough RAM to run the model. Try using a smaller model (e.g., `gemma:2b`) by changing the `model` parameter in the script's `ollama.chat` call.
-4.  **Corrupted Model**: Try removing and re-pulling the model: `ollama rm gemma3n:e2b` then `ollama pull gemma3n:e2b`.
+This project uses the text-based approach for stability, making it a powerful tool for improving writing and speech composition skills right now.

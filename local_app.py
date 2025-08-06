@@ -41,69 +41,114 @@ def transcribe_audio(audio_bytes):
     finally:
         os.remove(tmp_file_path)
 
-def get_empathy_feedback(text_to_analyze):
-    """Sends transcribed text to the locally running Ollama model."""
+
+def get_learning_feedback_stream(text_to_analyze, language="English"):
+    """Streams feedback from Ollama to the frontend as it is generated."""
     prompt = f"""
-    You are an expert empathy and communication coach. Your task is to analyze the following text and provide gentle, constructive feedback.
-    Analyze the text from three perspectives:
-    1.  **Clarity:** How clear is the user's message?
-    2.  **Sentiment:** What is the underlying emotion (e.g., frustrated, nervous, confident)?
-    3.  **Empathy:** Does the message consider the other person's feelings?
+    You are a supportive teacher helping a student improve their writing and speaking skills.
+    The student is learning in '{language}'. Your feedback should be in '{language}'.
 
-    After your analysis, provide one single, actionable tip in a "Suggestion:" section to help the user communicate more effectively. Keep the feedback concise and encouraging.
+    IMPORTANT: Read the text carefully word by word. DO NOT HALLUCINATE ERRORS. DO NOT INVENT ERRORS.
 
-    Text to analyze: "{text_to_analyze}"
+    The text is: "{text_to_analyze}"
+
+    First, perform a "Grammar & Spelling Check" on the text above:
+    - Compare each word against standard spelling and grammar
+    - If and ONLY if you find ACTUAL errors, list them specifically
+    - If NO errors exist, you MUST write exactly: "Grammar and spelling check: No errors found."
+
+    Then, provide a structured, encouraging report under the heading "Teacher's Feedback" focusing on:
+    1. **Clarity & Organization:** How clear and well-structured are the ideas?
+    2. **Writing Style:** Comment on word choice and expression.
+    3. **Impact:** How effective is the writing/speech for its purpose?
+
+    End with a "Suggestion:" section containing one specific, actionable tip to help the student improve.
+    Keep your feedback positive and encouraging.
     """
     try:
-        response = ollama.chat(
-            model='gemma3n:e2b',
+        response_stream = ollama.chat(
+            model='gemma3n:e4b',
             messages=[{'role': 'user', 'content': prompt}],
+            stream=True
         )
-        return response['message']['content']
+        for chunk in response_stream:
+            if 'message' in chunk and 'content' in chunk['message']:
+                yield chunk['message']['content']
     except Exception as e:
-        st.error("Could not connect to Ollama. Is it running in a separate terminal? (ollama serve)")
-        return f"Error communicating with Ollama: {e}"
+        yield f"Error communicating with Ollama: {e}"
 
 
 # --- Main App UI ---
 st.set_page_config(layout="wide")
-st.title("🎙️ The Offline Empathy Coach (Ollama Edition)")
-st.markdown("Practice conversations and get private feedback. **Transcription and AI analysis run 100% locally.**")
+st.title("📚 The Offline Learning Coach")
+st.markdown("For students with limited access to teachers. Practice writing essays or speaking, and get private feedback to improve your skills. **100% free and offline.**")
 
 # --- Main Columns ---
+
 col1, col2 = st.columns(2)
 
-with col1:
-    st.subheader("Record Your Message")
-    audio_file = st.file_uploader(
-        "Upload an audio file (WAV, MP3) or record a new one:", 
-        type=["wav", "mp3", "m4a"]
-    )
-    st.markdown("OR")
-    audio_bytes_from_mic = st.audio_input("Click the microphone to record, then click stop when finished.")
-
-    final_audio_bytes = None
-    if audio_bytes_from_mic:
-        final_audio_bytes = audio_bytes_from_mic.read()
-    elif audio_file:
-        final_audio_bytes = audio_file.read()
-
-    if final_audio_bytes:
-        with st.spinner("Transcribing audio..."):
-            transcribed_text = transcribe_audio(final_audio_bytes)
-
-        if "Error" not in transcribed_text:
-            st.info(f"**Transcribed Text:** {transcribed_text}")
-
-            with st.spinner("Your coach is thinking..."):
-                feedback = get_empathy_feedback(transcribed_text)
-                st.session_state.feedback = feedback
-        else:
-            st.error(transcribed_text)
-
+# Create a placeholder in the right column for feedback
 with col2:
-    st.subheader("AI Feedback")
-    st.info(st.session_state.get("feedback", "Your feedback will appear here."))
+    st.subheader("Teacher's Feedback")
+    feedback_placeholder = st.empty()
+    feedback_placeholder.info("Your feedback will appear here after submission.")
+
+with col1:
+    st.subheader("Submit Your Speech or Essay")
+    # Language Selector
+    language = st.selectbox(
+        "In which language would you like feedback?",
+        ("English", "Spanish", "French", "German", "Hindi", "Mandarin Chinese", "Arabic")
+    )
+    st.markdown("---")
+    # Input Method Tabs
+    input_method = st.radio("Choose your input method:", ("Speak", "Write"))
+    text_to_process = None
+    if input_method == "Speak":
+        audio_file = st.file_uploader("Upload an audio file:", type=["wav", "mp3", "m4a"])
+        st.markdown("OR")
+        audio_bytes_from_mic = st.audio_input("Click the microphone to record your speech:")
+        final_audio_bytes = None
+        if audio_bytes_from_mic:
+            final_audio_bytes = audio_bytes_from_mic.read()
+        elif audio_file:
+            final_audio_bytes = audio_file.read()
+        if final_audio_bytes:
+            with st.spinner("Transcribing audio..."):
+                text_to_process = transcribe_audio(final_audio_bytes)
+    elif input_method == "Write":
+        # Use session state to persist text input and ensure correct value is processed
+        if "text_input_value" not in st.session_state:
+            st.session_state.text_input_value = ""
+        text_area_input = st.text_area(
+            "Paste or type your essay/speech here:",
+            value=st.session_state.text_input_value,
+            height=250,
+            key="text_area"
+        )
+        # Update session state with current input
+        st.session_state.text_input_value = text_area_input
+        # Set the text_to_process variable only when the button is pressed
+        text_to_process = text_area_input if text_area_input else None
+    # Add a submit button to trigger the analysis
+    if st.button("Get Feedback"):
+        # Process the text if we have any
+        if text_to_process and "Error" not in text_to_process:
+            st.info(f"**Submitted Text:** {text_to_process}")
+            with st.spinner("Your teacher is reviewing..."):
+                feedback_placeholder.empty()
+                feedback_placeholder.write_stream(get_learning_feedback_stream(text_to_process, language))
+        elif text_to_process and "Error" in text_to_process:
+            st.error(text_to_process)
+            feedback_placeholder.error(text_to_process)
+        elif input_method == "Speak" and not text_to_process:
+            warning_msg = "Please record or upload an audio file before getting feedback."
+            st.warning(warning_msg)
+            feedback_placeholder.warning(warning_msg)
+        else:
+            warning_msg = "Please enter some text or record audio to get feedback."
+            st.warning(warning_msg)
+            feedback_placeholder.warning(warning_msg)
 
 st.markdown("---")
-st.info("This app uses `faster-whisper` for local transcription and `Ollama` to run Gemma 2B locally. Your data never leaves your computer.", icon="🔒")
+st.info("This app uses `faster-whisper` for local transcription and `Ollama` to run Gemma 3n locally. Your data never leaves your computer.", icon="🔒")
